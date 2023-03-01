@@ -1,6 +1,16 @@
 #pragma once
 #include <string>
 
+#ifdef _WIN32
+    #include <winsock.h>
+    #include "./WSA.h"
+    typedef SOCKET socket_fd_t;
+#elif defined(__linux__)
+    typedef int socket_fd_t;
+#else
+    #error Unknown operating system
+#endif
+
 
 enum class socket_domain{
     INET,
@@ -16,13 +26,17 @@ class base_socket {
     base_socket(const base_socket &other);
     const base_socket &operator=(const base_socket &other);
 
+#ifdef _WIN32
+    WSA *wsa;
+#endif
+
 protected:
-    int socket_fd;
+    socket_fd_t socket_fd;
 
     virtual ~base_socket() noexcept;
 public:
     base_socket();
-    explicit base_socket(int sock_fd);
+    explicit base_socket(socket_fd_t sock_fd);
 };
 
 
@@ -32,7 +46,7 @@ class active_socket : public base_socket{
 public:
     active_socket();
 
-    explicit active_socket(int sock_fd);
+    explicit active_socket(socket_fd_t sock_fd);
 
     void connect(const std::string &ip, int port);
 

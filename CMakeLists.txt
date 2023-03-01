@@ -3,4 +3,11 @@ project(WebServer)
 
 set(CMAKE_CXX_STANDARD 14)
 
-add_executable(WebServer main.cpp socket.cpp socket.h)
+if(WIN32)
+    link_libraries(ws2_32 wsock32)
+    add_executable(WebServer main.cpp socket.h win/socket.cpp win/WSA.h win/WSA.cpp)
+endif(WIN32)
+
+if(UNIX)
+    add_executable(WebServer main.cpp socket.h linux/socket.cpp win/WSA.cpp win/WSA.h)
+endif(UNIX)

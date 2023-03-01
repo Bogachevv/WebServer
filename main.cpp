@@ -11,13 +11,13 @@
 
 #define PORT 123
 
-static int counter = 0;
-
 void callback(active_socket &client){
-    std::string str;
-    client >> str;
-    std::cout << str << std::endl;
-    ++counter;
+    while (1) {
+        std::string str;
+        client >> str;
+        if (str.length() == 0) break;
+        std::cout << str << std::endl;
+    }
 }
 
 void server(){

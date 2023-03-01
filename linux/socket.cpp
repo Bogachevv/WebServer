@@ -1,4 +1,4 @@
-#include "socket.h"
+#include "../socket.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -13,7 +13,7 @@ base_socket::base_socket() {
     if (socket_fd == -1) throw std::runtime_error("Can't create socket");
 }
 
-base_socket::base_socket(int sock_fd) {
+base_socket::base_socket(socket_fd_t sock_fd) {
     socket_fd = sock_fd;
     //TODO:
     // check sock_fd
@@ -60,7 +60,7 @@ active_socket::active_socket() : base_socket() {
     connected = false;
 }
 
-active_socket::active_socket(int sock_fd) : base_socket(sock_fd) {
+active_socket::active_socket(socket_fd_t sock_fd) : base_socket(sock_fd) {
     connected = false;
 }
 
