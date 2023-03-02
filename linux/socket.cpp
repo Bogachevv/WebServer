@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <fcntl.h>
 
 
 base_socket::base_socket() {
@@ -14,9 +15,9 @@ base_socket::base_socket() {
 }
 
 base_socket::base_socket(socket_fd_t sock_fd) {
+    if ((fcntl(sock_fd, F_GETFD) == -1) and (errno == EBADF))
+        throw std::runtime_error("Can't create socket: " + std::to_string(sock_fd) + " is invalid file descriptor");
     socket_fd = sock_fd;
-    //TODO:
-    // check sock_fd
 }
 
 base_socket::~base_socket() noexcept {
@@ -48,6 +49,10 @@ void listen_socket::set_callback(callback_t new_callback_ptr) {
     this->callback_ptr = new_callback_ptr;
 }
 
+//TODO:
+//  rewrite for parallel work with clients
+//  A single-threaded approach for working with a client's needs may only be necessary
+//  for the purpose of improving debugging convenience
 void listen_socket::listen_loop() {
     while (is_alive){
         int client_fd = accept(socket_fd, NULL, NULL);
@@ -110,19 +115,13 @@ active_socket &active_socket::operator<<(const std::string &msg) {
 }
 
 active_socket &active_socket::operator>>(std::string &msg) {
-    FILE *f = fdopen(dup(socket_fd), "r");
-    //strange method to read c-string from socket
-    //TODO:
-    // rewrite it, using only low-level IO operations
-
-    char *buf = NULL;
-    size_t buf_len = 0;
-
-    getline(&buf, &buf_len, f);
-
-    msg = buf;
-    free(buf);
-    fclose(f);
+    while (true){
+        char ch = 0;
+        ssize_t received = recv(socket_fd, &ch, 1, 0);
+        if (received < 0) throw std::runtime_error("Can't receive message");
+        if ((received == 0) or (ch == 0)) break;
+        msg.push_back(ch);
+    }
 
     return *this;
 }
