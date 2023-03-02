@@ -9,5 +9,5 @@ if(WIN32)
 endif(WIN32)
 
 if(UNIX)
-    add_executable(WebServer main.cpp socket.h linux/socket.cpp win/WSA.cpp win/WSA.h)
+    add_executable(WebServer main.cpp socket.h linux/socket.cpp)
 endif(UNIX)

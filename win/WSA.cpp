@@ -1,4 +1,4 @@
-#include "WSA.h"
+#include "./WSA.h"
 
 #include <stdexcept>
 #include <winsock2.h>
@@ -26,17 +26,22 @@ WSA_ptr WSA::getWSA() {
 }
 
 WSA_ptr::WSA_ptr(WSA *wsa_ptr) {
-    ++ref_c;
+    ++WSA_ptr::ref_c;
     ptr = wsa_ptr;
 }
 
-WSA_ptr::WSA_ptr(const WSA_ptr &) {
-    //TODO: implement
+WSA_ptr::WSA_ptr(const WSA_ptr &other) {
+    ++WSA_ptr::ref_c;
+    this->ptr = other.ptr;
+}
+
+WSA *WSA_ptr::operator->() {
+    return ptr;
 }
 
 WSA_ptr::~WSA_ptr() {
-    --ref_c;
-    if (ref_c == 0){
+    --WSA_ptr::ref_c;
+    if (WSA_ptr::ref_c == 0){
         delete ptr;
     }
 }

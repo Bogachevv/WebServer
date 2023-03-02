@@ -1,18 +1,16 @@
 #include <iostream>
 #include <stdexcept>
-#include <cstdio>
-#include <sys/socket.h>
-#include "sys/types.h"
-#include <netinet/in.h>
-#include <unistd.h>
-#include <cinttypes>
+//#include <cstdio>
 
 #include "socket.h"
 
-#define PORT 123
+#define PORT 127
 
 void callback(active_socket &client){
     while (1) {
+//        char buf[2048];
+//        client.receive_msg(buf, sizeof(buf));
+//        if (buf[0] == 0) break;
         std::string str;
         client >> str;
         if (str.length() == 0) break;

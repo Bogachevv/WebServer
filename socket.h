@@ -2,15 +2,14 @@
 #include <string>
 
 #ifdef _WIN32
+    #include "./win/WSA.h"
     #include <winsock.h>
-    #include "./WSA.h"
     typedef SOCKET socket_fd_t;
 #elif defined(__linux__)
     typedef int socket_fd_t;
 #else
     #error Unknown operating system
 #endif
-
 
 enum class socket_domain{
     INET,
@@ -27,7 +26,7 @@ class base_socket {
     const base_socket &operator=(const base_socket &other);
 
 #ifdef _WIN32
-    WSA *wsa;
+    WSA_ptr wsaPtr;
 #endif
 
 protected:

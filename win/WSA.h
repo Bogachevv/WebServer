@@ -14,6 +14,8 @@ public:
     WSA_ptr(const WSA_ptr&);
     WSA_ptr &operator=(const WSA_ptr&) = delete;
 
+    WSA *operator->();
+
     ~WSA_ptr();
 
 };
