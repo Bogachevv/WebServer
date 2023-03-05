@@ -1,21 +1,28 @@
 #include <iostream>
 #include <stdexcept>
-//#include <cstdio>
 
 #include "socket.h"
+#include "request.h"
+#include "response.h"
 
 #define PORT 127
 
 void callback(active_socket &client){
-    while (1) {
-//        char buf[2048];
-//        client.receive_msg(buf, sizeof(buf));
-//        if (buf[0] == 0) break;
-        std::string str;
-        client >> str;
-        if (str.length() == 0) break;
+    int counter = 0;
+    while (counter < 1){
+        std::string str = client.read_line('\n');
         std::cout << str << std::endl;
+        if (str[0] == '\r') ++counter;
     }
+
+    std::string resp = "HTTP/1.1 200 OK\n";
+    resp += "Content-Type: text/html\n";
+    resp += "Content-Length: 20\n";
+    resp += "\n";
+    resp += "<h1>Hello world</h1>";
+    resp += "\n\n";
+
+    client << resp;
 }
 
 void server(){

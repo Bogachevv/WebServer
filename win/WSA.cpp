@@ -1,9 +1,9 @@
-#include "./WSA.h"
-
 #include <stdexcept>
 #include <winsock2.h>
 #include <windows.h>
 #include <ws2tcpip.h>
+
+#include "./WSA.h"
 
 WSA *WSA::object_ptr = nullptr;
 int WSA_ptr::ref_c = 0;

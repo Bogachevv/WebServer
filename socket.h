@@ -57,6 +57,8 @@ public:
 
     void receive_msg(char *buf, size_t len);
 
+    std::string read_line(char delimiter);
+
     active_socket &operator<<(const std::string &msg);
 
     active_socket &operator>>(std::string &msg);

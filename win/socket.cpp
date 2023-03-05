@@ -73,6 +73,19 @@ void active_socket::receive_msg(char *buf, size_t len) {
     }
 }
 
+std::string active_socket::read_line(char delimiter) {
+    std::string msg;
+    while (true){
+        char ch = 0;
+        ssize_t received = recv(socket_fd, &ch, 1, 0);
+        if (received < 0) throw std::runtime_error("Can't receive message");
+        msg.push_back(ch);
+        if ((received == 0) or (ch == delimiter) or (ch == 0)) break;
+    }
+
+    return msg;
+}
+
 active_socket &active_socket::operator<<(const std::string &msg) {
     send_msg(msg.c_str(), msg.length());
     return *this;
