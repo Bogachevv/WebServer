@@ -10,24 +10,21 @@ class response {
     int status_code;
     std::string status_msg;
     std::vector<std::string> headers;
-    char *body;
-    size_t body_size;
+    std::vector<unsigned char> body;
 
 public:
     response(int status_code, std::string status_msg);
 
     response(int status_code, std::string status_msg, std::string HTTP_version);
 
-    void set_text_body(const std::string &str);
+    void set_body(const std::vector<unsigned char> &new_body);
 
-    void copy_body(char *body_ptr, size_t size);
-
-    void capture_body(char *body_ptr, size_t size);
+    void set_body(std::vector<unsigned char> &&new_body);
 
     void add_header(const std::string &header);
 
     void send(active_socket &socket);
 
-    ~response();
+    ~response() = default;
 };
 
