@@ -11,15 +11,6 @@
     #error Unknown operating system
 #endif
 
-enum class socket_domain{
-    INET,
-    UNIX
-};
-
-enum class socket_type{
-    STREAM,
-    DGRAM
-};
 
 class base_socket {
     base_socket(const base_socket &other);
@@ -46,6 +37,8 @@ public:
     active_socket();
 
     explicit active_socket(socket_fd_t sock_fd);
+
+    active_socket(active_socket&&);
 
     void connect(const std::string &ip, int port);
 
