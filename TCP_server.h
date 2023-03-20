@@ -1,71 +1,42 @@
 #pragma once
 
-#include <vector>
-#include <unordered_map>
+#include "IO_supervisor.h"
+#include "socket.h"
+
 #include <queue>
-#include <memory>
-#include <stdexcept>
+#include <vector>
 
-#include "./socket.h"
-#include "./client.h"
-
-struct TCP_server_error : std::runtime_error{
-    explicit TCP_server_error(const std::string &msg) : std::runtime_error(msg) {}
+enum class mode{
+    rd, wr, process, wait
 };
 
-struct server_exists : TCP_server_error{
-    explicit server_exists(const std::string &msg) : TCP_server_error(msg) {}
-};
-
-class TCP_server;
-
-class TCP_server_ptr{
-    static int ref_c;
-    TCP_server *ptr;
-public:
-    explicit TCP_server_ptr(TCP_server *ptr);
-
-    TCP_server_ptr(TCP_server_ptr &other);
-
-    TCP_server_ptr &operator=(const TCP_server_ptr&) = delete;
-
-    TCP_server *operator->() { return ptr; }
-
-    ~TCP_server_ptr();
-
+struct client{
+    int fd;
+    mode m;
 };
 
 class TCP_server {
+listen_socket listener;
+IO_supervisor_ptr supervisor_ptr;
+
+std::queue<int> fd_rd_available;
+std::queue<int> fd_wr_available;
+std::queue<int> fd_process_available;
+
+std::vector<client> clients;
+
+void on_accept(int fd, operation_type op_type);
+
 public:
-    using pointer = TCP_server_ptr;
-    using client_ptr = std::unique_ptr<client>;
-    using client_process_callback = void(*)(client_ptr&);
-    friend TCP_server_ptr;
-
-private:
-    static TCP_server *obj_ptr;
-
-    std::unordered_map<int, client_ptr> clients_map;
-    std::queue<int> rd_available;
-    std::queue<int> process_available;
-
-    listen_socket listener;
-
-    void on_new_client();
-
-    void main_loop();
-
     TCP_server(const std::string& ip, int port);
 
-    ~TCP_server();
+    TCP_server(const TCP_server&) = delete;
 
-public:
-    TCP_server(TCP_server&) = delete;
     TCP_server &operator=(const TCP_server&) = delete;
 
-    static pointer make_server(const std::string& ip, int port);
+    TCP_server(TCP_server&& rhs);
 
-    static pointer get_server();
+    TCP_server &operator=(TCP_server&& rhs) noexcept;
 
-    void start();
+
 };
