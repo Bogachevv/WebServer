@@ -2,12 +2,13 @@
 #include <fstream>
 #include <stdexcept>
 #include <sstream>
+#include <unordered_map>
 
 #include "socket.h"
 #include "request.h"
 #include "response.h"
 
-#define PORT 127
+#define PORT 8000
 
 void send404(active_socket &client){
     std::string error_msg = "<h1>File not found</h1>";
@@ -21,7 +22,7 @@ void send404(active_socket &client){
 }
 
 enum class file_type{
-    html, png, other
+    text, image, other
 };
 
 class file_open_error : std::runtime_error {
@@ -30,13 +31,27 @@ public:
     file_open_error(const std::string &msg, std::string path) : std::runtime_error(msg), path(std::move(path)) {}
 };
 
-file_type get_file_type(const std::string &path){
+std::string get_file_extension(const std::string &path){
     size_t dot = path.find_last_of('.');
-    std::string f_type = path.substr(dot+1);
+    std::string ext = path.substr(dot+1);
+    return ext;
+}
 
-    if ((f_type == "html") or (f_type == "htm")) return file_type::html;
-    if (f_type == "png") return file_type::png;
+file_type get_file_type(const std::string &path){
+    static const std::unordered_map<std::string, file_type> file_types = {
+            {"htm", file_type::text},
+            {"html", file_type::text},
+            {"css", file_type::text},
+            {"js", file_type::text},
+            {"png", file_type::image},
+            {"jpg", file_type::image},
+            {"jpeg", file_type::image},
+            {"gif", file_type::image},
+            {"webp", file_type::image},
+    };
+    std::string f_type = get_file_extension(path);
 
+    if (file_types.count(f_type) > 0) return file_types.at(f_type);
     return file_type::other;
 }
 
@@ -73,14 +88,14 @@ void add_body(response &resp, const std::string &path){
     file_type f_type = get_file_type(path);
     size_t body_size;
     switch (f_type) {
-        case file_type::html:
+        case file_type::text:
             body_size = add_text_body(resp, path);
-            resp.add_header("Content-Type: text/html; charset=UTF-8");
+            resp.add_header("Content-Type: text/" + get_file_extension(path) +"; charset=UTF-8");
             resp.add_header("Content-Length: " + std::to_string(body_size));
             break;
-        case file_type::png:
+        case file_type::image:
             body_size = add_bin_body(resp, path);
-            resp.add_header("Content-Type: image/png");
+            resp.add_header("Content-Type: image/" + get_file_extension(path));
             resp.add_header("Content-Length: " + std::to_string(body_size));
             break;
         case file_type::other:
@@ -88,8 +103,6 @@ void add_body(response &resp, const std::string &path){
     }
 }
 
-//TODO:
-//  extend(rewrite) document type checking (for Content-Type header)
 void callback(active_socket &client){
     request req = accept_request(client);
     std::cout << req;
@@ -97,9 +110,11 @@ void callback(active_socket &client){
     if (req.get_request_method() == request_method::GET){
         std::string path = req.get_path();
         if (path.length() <= 1){
-            path = R"(..\www\index.html)";
+//            path = R"(..\www\index.html)";
+            path = "../www/index.html";
         } else{
-            path = R"(..\www\)" + path.substr(1, path.length());
+//            path = R"(..\www\)" + path.substr(1, path.length());
+            path = "../www/" + path.substr(1, path.length());
         }
 
         response resp(200, "OK");
@@ -110,38 +125,17 @@ void callback(active_socket &client){
             send404(client);
             return;
         }
-
         resp.send(client);
     }
 }
 
 void server(){
-    listen_socket server("127.0.0.1", PORT);
+    listen_socket server("172.26.126.209", PORT);
     server.set_callback(&callback);
     server.start_listening(16);
 }
 
-void client(){
-    active_socket client;
-    client.connect("127.0.0.1", PORT);
-    char msg[] = "Hello, server!";
-    client.send_msg(msg, sizeof(msg));
-}
-
-void test(int argc, char **argv){
-    if ((argc < 2) or (argv[1][0] == 'c')){
-        printf("Client\n");
-        client();
-    }
-    else{
-        printf("Server\n");
-        server();
-    }
-}
-
-
 int main(int argc, char **argv) {
-    test(argc, argv);
-
+    server();
     return 0;
 }

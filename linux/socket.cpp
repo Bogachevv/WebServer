@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
+#include <cstring>
+#include <sys/wait.h>
 
 
 base_socket::base_socket() {
@@ -29,7 +31,7 @@ listen_socket::listen_socket(const std::string &ip, int port, callback_t callbac
     inet_pton(AF_INET, ip.c_str(), &(sock_addr.sin_addr));
 
     if (bind(socket_fd, (sockaddr*)&sock_addr, sizeof(sock_addr)) == -1){
-        throw std::runtime_error("Can't bind socket");
+        throw std::runtime_error("Can't bind socket: " + std::string(strerror(errno)));
     }
 
     this->callback_ptr = callback_ptr;
@@ -49,15 +51,19 @@ void listen_socket::set_callback(callback_t new_callback_ptr) {
     this->callback_ptr = new_callback_ptr;
 }
 
-//TODO:
-//  rewrite for parallel work with clients
-//  A single-threaded approach for working with a client's needs may only be necessary
-//  for the purpose of improving debugging convenience
 void listen_socket::listen_loop() {
     while (is_alive){
-        int client_fd = accept(socket_fd, NULL, NULL);
-        active_socket client(client_fd);
-        callback_ptr(client);
+        int client_fd = accept(socket_fd, nullptr, nullptr);
+        pid_t pid = fork();
+        if (pid == -1) throw std::runtime_error("Fork error: " + std::to_string(errno));
+        if (pid == 0){
+            close(this->socket_fd);
+            active_socket client(client_fd);
+            callback_ptr(client);
+            exit(0);
+        }
+        close(client_fd);
+        while (waitpid(0, nullptr, WNOHANG)) {}
     }
 }
 
