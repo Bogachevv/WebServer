@@ -57,7 +57,7 @@ bool IO_supervisor::is_register(int fd) {
 void IO_supervisor::SIGIO_handler(int sig, siginfo_t *siginfo, void *ucontext) {
     int fd = siginfo->si_fd;
     operation_type op_type;
-    size_t size = 0;
+//    size_t size = 0;
     switch (siginfo->si_band) {
         case POLL_IN:
             op_type = operation_type::rd_av;
@@ -67,7 +67,7 @@ void IO_supervisor::SIGIO_handler(int sig, siginfo_t *siginfo, void *ucontext) {
             break;
         case SI_ASYNCIO:
             op_type = operation_type::io_fin;
-            size = aio_return64(((struct aiocb64*)siginfo->si_value.sival_ptr));
+//            size = aio_return64(((struct aiocb64*)siginfo->si_value.sival_ptr));
             break;
         default:
             op_type = operation_type::other;
@@ -75,6 +75,6 @@ void IO_supervisor::SIGIO_handler(int sig, siginfo_t *siginfo, void *ucontext) {
     }
     auto &callback_map = IO_supervisor::obj_ptr->callback_map;
     if (callback_map.count(fd)){ //if fd in callback_map
-        callback_map[fd](fd, op_type, size);
+        callback_map[fd](fd, op_type);
     }
 }

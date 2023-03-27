@@ -2,12 +2,14 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/ioctl.h>
 #include <unistd.h>
 #include <stdexcept>
+#include <utility>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <fcntl.h>
-#include <aio.h>
+#include <cstring>
 
 base_socket::base_socket() {
     socket_fd = socket(AF_INET, SOCK_STREAM, 0);
@@ -24,24 +26,26 @@ base_socket::~base_socket() noexcept {
     close(socket_fd);
 }
 
-active_socket::active_socket() : base_socket(), io_supervisor(IO_supervisor::get()) {
+active_socket::active_socket(std::weak_ptr<TCP_server> server_ptr)  :
+    base_socket(),
+    io_supervisor(IO_supervisor::get()),
+    server(std::move(server_ptr))
+{
     connected = false;
-    line_end = -1;
-    buf_size = 512;
-    buf = new char[buf_size];
-    auto callback = [&](int fd, operation_type op_type, size_t size) {
-        this->on_SIGIO(fd, op_type, size);
+    auto callback = [&](int fd, operation_type op_type) {
+        this->on_SIGIO(fd, op_type);
     };
     io_supervisor->register_fd(socket_fd, callback);
 }
 
-active_socket::active_socket(int sock_fd) : base_socket(sock_fd), io_supervisor(IO_supervisor::get()) {
+active_socket::active_socket(int sock_fd, std::weak_ptr<TCP_server> server_ptr) :
+    base_socket(sock_fd),
+    io_supervisor(IO_supervisor::get()),
+    server(std::move(server_ptr))
+{
     connected = false;
-    line_end = -1;
-    buf_size = 512;
-    buf = new char[buf_size];
-    auto callback = [&](int fd, operation_type op_type, size_t size) {
-        this->on_SIGIO(fd, op_type, size);
+    auto callback = [&](int fd, operation_type op_type) {
+        this->on_SIGIO(fd, op_type);
     };
     io_supervisor->register_fd(socket_fd, callback);
 }
@@ -75,49 +79,66 @@ std::vector<char> active_socket::read_buffer(size_t bytes_c) {
         res_elm = rd_buf.front();
         rd_buf.pop();
     }
-
     return res;
 }
 
-void active_socket::write_line(const std::string &line) {
-    for (auto &byte: line){
-        wr_buf.push(byte);
+void active_socket::read_bytes() {
+    size_t bytes_available = 0;
+    if (ioctl(socket_fd, FIONREAD, &bytes_available)){
+        throw std::runtime_error("ioctl error: " + std::string(strerror(errno)));
+    }
+    std::unique_ptr<char[]> buf(new char[bytes_available]);
+    recv(socket_fd, buf.get(), bytes_available, 0);
+    for (size_t i = 0; i < bytes_available; ++i){
+        rd_buf.push(buf[bytes_available - i - 1]);
     }
 }
 
-std::string active_socket::read_line() {
-    if (not str_available()) throw std::runtime_error("Line is not available");
-    std::string res(line_end, '\0');
+void active_socket::write_bytes() {
+    throw std::logic_error("Not implemented");
+    //use aio to write bytes
+}
 
-    for (ssize_t i = 0; i < line_end; ++i){
-        res[i] = rd_buf.front();
-        rd_buf.pop();
+void active_socket::on_SIGIO(int fd, operation_type op_type) {
+    auto server_ptr = server.lock();
+    if (server_ptr == nullptr){
+        throw std::logic_error("Not implemented");
+    }
+    server_ptr->on_client_action(*this, op_type);
+}
+
+//TODO:
+//  initialize server ptr
+listen_socket::listen_socket(const std::string &ip, int port, const TCP_server& server_ref) :
+    base_socket(),
+    io_supervisor(IO_supervisor::get())
+{
+    auto callback = [&](int fd, operation_type op_type) {
+        this->on_SIGIO(fd, op_type);
+    };
+    io_supervisor->register_fd(socket_fd, callback);
+
+    sockaddr_in sock_addr = {AF_INET, htons(port)};
+    inet_pton(AF_INET, ip.c_str(), &(sock_addr.sin_addr));
+
+    if (bind(socket_fd, (sockaddr*)&sock_addr, sizeof(sock_addr)) == -1){
+        throw std::runtime_error("Can't bind socket: " + std::string(strerror(errno)));
     }
 
-    return res;
+    is_alive = false;
 }
 
-void active_socket::on_SIGIO(int fd, operation_type op_type, size_t size) {
-    if (op_type == operation_type::rd_av) on_rd_av();
-    else if (op_type == operation_type::wr_av) on_wr_av();
-    else if (op_type == operation_type::io_fin) on_io_fin(size);
-    else throw std::runtime_error("Unexpected op_type");
+void listen_socket::start_listening(int backlog) {
+    if (listen(socket_fd, backlog) == -1){
+        throw std::runtime_error("Can't start listening socket" + std::string(std::strerror(errno)));
+    }
+    is_alive = true;
 }
 
-void active_socket::on_rd_av() {
-    struct sigevent se{SIGEV_SIGNAL, SIGIO};
-    struct aiocb64 io_req{socket_fd, LIO_READ, 0, buf, buf_size, se};
-    aio_read64(&io_req);
-}
-
-void active_socket::on_wr_av() {
-    struct sigevent se{SIGEV_SIGNAL, SIGIO};
-    struct aiocb64 io_req{socket_fd, LIO_WRITE, 0, buf, buf_size, se};
-    aio_read64(&io_req);
-}
-
-active_socket::~active_socket() noexcept {
-    delete[] buf;
-    // TODO:
-    //  should i close sock_fd??
+void listen_socket::on_SIGIO(int fd, operation_type op_type) {
+    auto server_ptr = server.lock();
+    if (server_ptr == nullptr){
+        throw std::logic_error("Not implemented");
+    }
+    server_ptr->on_accept(fd, op_type);
 }

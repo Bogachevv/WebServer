@@ -30,7 +30,7 @@ enum class operation_type{
 
 class IO_supervisor {
 public:
-    typedef std::function<void(int, operation_type, size_t)> callback_t;
+    typedef std::function<void(int, operation_type)> callback_t;
 
     friend IO_supervisor_ptr;
 private:

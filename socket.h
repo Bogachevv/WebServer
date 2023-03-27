@@ -6,6 +6,7 @@
 #include <csignal>
 
 #include "./IO_supervisor.h"
+#include "./TCP_server.h"
 
 
 class base_socket {
@@ -29,22 +30,14 @@ class active_socket : public base_socket{
     IO_supervisor_ptr io_supervisor;
 
     std::queue<char> rd_buf, wr_buf;
-    ssize_t line_end;
-    char *buf;
-    size_t buf_size;
+    std::weak_ptr<TCP_server> server;
 
-    void on_SIGIO(int fd, operation_type op_type, size_t size);
-
-    void on_io_fin(size_t size);
-
-    void on_rd_av();
-
-    void on_wr_av();
+    void on_SIGIO(int fd, operation_type op_type);
 
 public:
-    active_socket();
+    explicit active_socket(std::weak_ptr<TCP_server> server_ptr);
 
-    explicit active_socket(int sock_fd);
+    active_socket(int sock_fd, std::weak_ptr<TCP_server> server_ptr);
 
     void connect(const std::string &ip, int port);
 
@@ -56,30 +49,28 @@ public:
 
     std::vector<char> read_buffer(size_t bytes_c);
 
-    void write_line(const std::string &line);
-
-    std::string read_line();
-
-    bool str_available() const { return line_end > 0; }
-
     size_t rd_buf_size() const {return rd_buf.size(); }
 
     size_t wr_buf_size() const { return wr_buf.size(); }
 
-    ~active_socket() noexcept override;
+    void read_bytes();
+
+    void write_bytes();
+
+    ~active_socket() noexcept override = default;
 };
 
 
 class listen_socket : public base_socket{
-private:
     bool is_alive;
+    std::weak_ptr<TCP_server> server;
+    IO_supervisor_ptr io_supervisor;
 
+    void on_SIGIO(int fd, operation_type op_type);
 public:
-    listen_socket(const std::string &ip, int port);
+    listen_socket(const std::string &ip, int port, const TCP_server& server_ref);
 
     void start_listening(int backlog);
-
-    void stop_listening();
 
     ~listen_socket() override = default;
 };
