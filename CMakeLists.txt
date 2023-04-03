@@ -9,5 +9,5 @@ if(WIN32)
 endif(WIN32)
 
 if(UNIX)
-    add_executable(WebServer main.cpp socket.h linux/socket.cpp request.cpp request.h response.cpp response.h)
+    add_executable(WebServer main.cpp socket.h linux/socket.cpp request.cpp request.h response.cpp response.h linux/CGI.cpp CGI.h)
 endif(UNIX)

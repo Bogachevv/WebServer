@@ -22,7 +22,7 @@ void send404(active_socket &client){
 }
 
 enum class file_type{
-    text, image, other
+    text, image, exec, other
 };
 
 class file_open_error : std::runtime_error {
@@ -48,6 +48,7 @@ file_type get_file_type(const std::string &path){
             {"jpeg", file_type::image},
             {"gif", file_type::image},
             {"webp", file_type::image},
+            {"sh", file_type::exec}
     };
     std::string f_type = get_file_extension(path);
 
