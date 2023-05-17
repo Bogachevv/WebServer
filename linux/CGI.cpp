@@ -49,12 +49,12 @@ CGI::CGI(std::string path, const std::vector<std::string> &args, const std::vect
         }
 
         execvpe(script_path.c_str(), (char* const*)args_cptr, (char* const*)env_cptr);
+//        execlp(script_path.c_str(), script_path.c_str(), NULL);
         throw CGI_fork_error("Can't start script: " + std::string(std::strerror(errno)));
     }
 }
 
-std::string CGI::process(const std::string &input) {
-    write(pipes[1], input.c_str(), input.size());
+std::string CGI::process() {
     int status;
     while (waitpid(pid, &status, 0) != pid) {}
 

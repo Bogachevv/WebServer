@@ -91,7 +91,7 @@ size_t add_text_body(response &resp, const std::string &path){
 size_t add_from_CGI(response &resp, const std::string &path){
     //TODO: get env vars from query string
     std::cout << "running CGI" << std::endl;
-    CGI cgi(path, {}, {});
+    CGI cgi(path, {path}, {});
     std::cout << "processing CGI" << std::endl;
     auto res = cgi.process();
     resp.set_body({res.begin(), res.end()});
