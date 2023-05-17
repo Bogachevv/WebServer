@@ -59,6 +59,28 @@ file_type get_file_type(const std::string &path){
     return file_type::other;
 }
 
+std::string get_path_from_query(const std::string &query){
+    auto path_end = query.find('?');
+    if (path_end == std::string::npos) path_end = query.length();
+    return {query.begin(), query.begin() + (signed long long)path_end};
+}
+
+std::vector<std::string> get_args_from_query(const std::string &query){
+    std::vector<std::string> args;
+
+    auto path_end = query.find('?');
+    if (path_end == std::string::npos) path_end = query.length();
+
+    for (auto pos = path_end+1; pos < query.size();){
+        size_t new_pos = query.find('&', pos);
+        if (new_pos == std::string::npos) new_pos = query.size();
+        args.emplace_back(query.begin() + (signed long long)pos, query.begin() + (signed long long)new_pos);
+        pos = new_pos + 1;
+    }
+
+    return args;
+}
+
 size_t add_bin_body(response &resp, const std::string &path){
     std::ifstream file(path, std::ios::binary);
     if (file.bad()) throw file_open_error("Can't open file", path);
@@ -88,10 +110,17 @@ size_t add_text_body(response &resp, const std::string &path){
     return i;
 }
 
-size_t add_from_CGI(response &resp, const std::string &path){
-    //TODO: get env vars from query string
-    std::cout << "running CGI" << std::endl;
-    CGI cgi(path, {path}, {});
+size_t add_from_CGI(response &resp, const std::string &query){
+    std::string path = get_path_from_query(query);
+    std::vector<std::string> env_vars = get_args_from_query(query);
+
+    std::cout << "running CGI with" << std::endl;
+    std::cout << "Path: " << path << std::endl;
+    std::cout << "Args:" << std::endl;
+    for (auto &arg: env_vars){
+        std::cout << arg << std::endl;
+    }
+    CGI cgi(path, {path}, env_vars);
     std::cout << "processing CGI" << std::endl;
     auto res = cgi.process();
     resp.set_body({res.begin(), res.end()});
@@ -99,8 +128,9 @@ size_t add_from_CGI(response &resp, const std::string &path){
     return res.length();
 }
 
-void add_body(response &resp, const std::string &path){
+void add_body(response &resp, const std::string &query){
     std::cout << "add body" << std::endl;
+    std::string path = get_path_from_query(query);
     file_type f_type = get_file_type(path);
     size_t body_size;
     switch (f_type) {
@@ -115,7 +145,7 @@ void add_body(response &resp, const std::string &path){
             resp.add_header("Content-Length: " + std::to_string(body_size));
             break;
         case file_type::exec:
-            body_size = add_from_CGI(resp, path);
+            body_size = add_from_CGI(resp, query);
             resp.add_header("Content-Type: text/html; charset=UTF-8");
             resp.add_header("Content-Length: " + std::to_string(body_size));
             break;
