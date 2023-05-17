@@ -60,7 +60,7 @@ std::string CGI::process() {
         std::string tmp(buf, rd_cnt);
         out += tmp;
 //        std::copy(std::begin(buf), std::begin(buf)+rd_cnt, out.end());
-    } while (rd_cnt == sizeof(buf));
+    } while (rd_cnt != 0);
 
     return out;
 }
