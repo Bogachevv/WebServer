@@ -20,7 +20,7 @@ struct CGI_pipe_error : CGI_error {
 };
 
 class CGI {
-    std::string script_path;
+    std::string script_path, tmp_path;
     pid_t pid;
     // pipes[0] -- rd
     // pipes[1] -- wr

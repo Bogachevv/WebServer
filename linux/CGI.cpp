@@ -4,7 +4,8 @@
 #include <algorithm>
 #include <csignal>
 #include <wait.h>
-#include <iostream>
+#include <fcntl.h>
+#include <fstream>
 
 #include "../CGI.h"
 
@@ -15,9 +16,10 @@ int change_fd(int src, int copy){
     return state;
 }
 
-CGI::CGI(const std::string& path, const std::vector<std::string> &args, const std::vector<std::string> &env) :
-    script_path(path)
+CGI::CGI(std::string path, const std::vector<std::string> &args, const std::vector<std::string> &env) :
+    script_path(std::move(path))
 {
+    tmp_path = std::string("Process_") + std::to_string(pid) + std::string(".tmp");
     if (pipe(pipes) == -1){
         throw CGI_pipe_error("Can't create pipe");
     }
@@ -26,11 +28,14 @@ CGI::CGI(const std::string& path, const std::vector<std::string> &args, const st
     if (pid == -1)
         throw CGI_fork_error("Can't create CGI: fork error (" + std::string(std::strerror(errno)) + ")");
     if (pid > 0) { // father
-        close(pipes[1]);
+        close(pipes[0]);
     }
     else{ // son
-        change_fd(pipes[1], 1);
-        close(pipes[0]);
+        close(pipes[1]);
+        change_fd(pipes[0], 0);
+        int tmp_file = open(tmp_path.c_str(),
+                            O_CREAT | O_TRUNC | O_WRONLY);
+        change_fd(tmp_file, 1);
 
         // which better?
         auto args_cptr = new decltype(args[0].c_str())[args.size()];
@@ -43,31 +48,27 @@ CGI::CGI(const std::string& path, const std::vector<std::string> &args, const st
             env_cptr[i] = env[i].c_str();
         }
 
-//        execvpe(script_path.c_str(), (char* const*)args_cptr, (char* const*)env_cptr);
-        execlp(script_path.c_str(),script_path.c_str(), NULL);
-        throw CGI_fork_error("Can't start script: " + std::string(std::strerror(errno)) + "; path = " + script_path);
+        execvpe(script_path.c_str(), (char* const*)args_cptr, (char* const*)env_cptr);
+        throw CGI_fork_error("Can't start script: " + std::string(std::strerror(errno)));
     }
 }
 
-std::string CGI::process() {
-    char buf[128];
-    std::string out;
-    ssize_t rd_cnt;
-    do{
-        rd_cnt = read(pipes[0], buf, sizeof(buf));
-        if (rd_cnt == -1)
-            throw CGI_pipe_error("Can't read from pipe: " + std::string(std::strerror(errno)));
-        std::string tmp(buf, rd_cnt);
-        out += tmp;
-//        std::copy(std::begin(buf), std::begin(buf)+rd_cnt, out.end());
-    } while (rd_cnt != 0);
+std::string CGI::process(const std::string &input) {
+    write(pipes[1], input.c_str(), input.size());
+    int status;
+    while (waitpid(pid, &status, 0) != pid) {}
 
-    return out;
+    if (WIFEXITED(status) and (WEXITSTATUS(status) == 0)){
+        std::ifstream tmp_file(tmp_path);
+        if (tmp_file.bad()) throw std::runtime_error("Can't open tmp file");
+        std::string res = {std::istreambuf_iterator<char>(tmp_file), std::istreambuf_iterator<char>()};
+
+        tmp_file.close();
+        std::remove(tmp_path.c_str());
+
+        return res;
+    }
+    throw std::runtime_error("CGI script error");
 }
 
-CGI::~CGI() {
-//    close(pipes[0]);
-//    close(pipes[1]);
-//    kill(pid, SIGKILL);
-//    waitpid(pid, nullptr, WNOHANG);
-}
+CGI::~CGI() = default;
