@@ -51,9 +51,13 @@ void listen_socket::set_callback(callback_t new_callback_ptr) {
     this->callback_ptr = new_callback_ptr;
 }
 
+#include <iostream>
 void listen_socket::listen_loop() {
+    std::cout << "Start listening" << std::endl;
     while (is_alive){
         int client_fd = accept(socket_fd, nullptr, nullptr);
+        std::cout << "Accept" << std::endl;
+        std::cout << std::flush;
         pid_t pid = fork();
         if (pid == -1) throw std::runtime_error("Fork error: " + std::to_string(errno));
         if (pid == 0){

@@ -27,9 +27,9 @@ class CGI {
     int pipes[2];
 
 public:
-    CGI(std::string path, const std::vector<std::string> &args, const std::vector<std::string> &env);
+    CGI(const std::string &path, const std::vector<std::string> &args, const std::vector<std::string> &env);
 
-    std::string process(const std::string &input);
+    std::string process();
 
     ~CGI();
 };
